@@ -9,7 +9,27 @@
 
 from typing import Union
 
+from pyrogram import enums
 from pyrogram.types import Message
+
+
+def can_manage_voice_chats(member) -> bool:
+    """
+    يتحقق إن كان عضو الدردشة (ChatMember) مخوّلاً بإدارة المكالمات الصوتية.
+
+    في إصدارات Pyrofork/Pyrogram الحديثة، انتقلت هذه الصلاحية من خاصية مباشرة
+    على ChatMember (can_manage_voice_chats) إلى داخل member.privileges
+    باسم جديد (can_manage_video_chats). الوصول للاسم القديم مباشرة يرفع
+    AttributeError دائماً، وهذا كان يجعل تحديث قائمة الادمنية يفشل بصمت.
+
+    صاحب المجموعة (OWNER) يُعتبر مخوّلاً دائماً، حتى لو كان privileges فاضي.
+    """
+    if member is None:
+        return False
+    if getattr(member, "status", None) == enums.ChatMemberStatus.OWNER:
+        return True
+    privileges = getattr(member, "privileges", None)
+    return bool(privileges and getattr(privileges, "can_manage_video_chats", False))
 
 
 def get_readable_time(seconds: int) -> str:
