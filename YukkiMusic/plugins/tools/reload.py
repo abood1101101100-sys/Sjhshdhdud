@@ -19,7 +19,7 @@ from YukkiMusic.misc import db
 from YukkiMusic.utils.database import get_authuser_names, get_cmode
 from YukkiMusic.utils.decorators import (ActualAdminCB, AdminActual,
                                          language)
-from YukkiMusic.utils.formatters import alpha_to_int
+from YukkiMusic.utils.formatters import alpha_to_int, can_manage_voice_chats
 
 ### Multi-Lang Commands
 RELOAD_COMMAND = get_command("RELOAD_COMMAND")
@@ -42,7 +42,7 @@ async def reload_admin_cache(client, message: Message, _):
         authusers = await get_authuser_names(chat_id)
         adminlist[chat_id] = []
         for user in admins:
-            if user.can_manage_voice_chats:
+            if can_manage_voice_chats(user):
                 adminlist[chat_id].append(user.user.id)
         for user in authusers:
             user_id = await alpha_to_int(user)
