@@ -33,6 +33,7 @@ DELETEPLAYLIST_COMMAND : ["deleteplaylist", "حذف_القائمة"]
 # Tools
 QUEUE_COMMAND : ["queue", "cqueue", "player", "cplayer", "playing", "cplaying", "قائمة", "يشغل"]
 SONG_COMMAND : ["song", "video", "اغنية", "أغنية"]
+SEARCH_COMMAND : ["search", "بحث", "mp3"]
 LYRICS_COMMAND : ["lyrics", "كلمات"]
 
 # Admin Commands
