@@ -28,7 +28,7 @@ from YukkiMusic.utils.database import (get_active_chats,
                                        update_particular_top,
                                        update_user_top)
 from YukkiMusic.utils.decorators.language import language
-from YukkiMusic.utils.formatters import alpha_to_int
+from YukkiMusic.utils.formatters import alpha_to_int, can_manage_voice_chats
 
 BROADCAST_COMMAND = get_command("BROADCAST_COMMAND")
 AUTO_DELETE = config.CLEANMODE_DELETE_MINS
@@ -270,7 +270,7 @@ async def auto_clean():
                         continue
                     adminlist[chat_id] = []
                     for user in admins:
-                        if user.can_manage_voice_chats:
+                        if can_manage_voice_chats(user):
                             adminlist[chat_id].append(user.user.id)
                     authusers = await get_authuser_names(chat_id)
                     for user in authusers:
