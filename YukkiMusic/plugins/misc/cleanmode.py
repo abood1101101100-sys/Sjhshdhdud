@@ -10,7 +10,7 @@
 import asyncio
 from datetime import datetime, timedelta
 
-from pyrogram import filters
+from pyrogram import enums, filters
 from pyrogram.errors import FloodWait
 from pyrogram.raw import types
 
@@ -261,10 +261,14 @@ async def auto_clean():
             served_chats = await get_active_chats()
             for chat_id in served_chats:
                 if chat_id not in adminlist:
+                    try:
+                        admins = await app.get_chat_members(
+                            chat_id, filter=enums.ChatMembersFilter.ADMINISTRATORS
+                        )
+                    except Exception as e:
+                        print(f"[AutoClean] ⚠️ تعذّر جلب الادمنية للمجموعة {chat_id}: {type(e).__name__}: {e}")
+                        continue
                     adminlist[chat_id] = []
-                    admins = await app.get_chat_members(
-                        chat_id, filter="administrators"
-                    )
                     for user in admins:
                         if user.can_manage_voice_chats:
                             adminlist[chat_id].append(user.user.id)
