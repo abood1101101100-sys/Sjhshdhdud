@@ -8,6 +8,7 @@ import asyncio
 import glob
 import os
 import re
+import time
 from typing import Optional, Union
 
 import aiohttp
@@ -150,6 +151,77 @@ class YouTubeAPI:
             print(f"[ArtistBots] ❌ خطأ لـ {video_id}: {e}")
             return None
 
+    # ── بحث مرن: يجرب youtubesearchpython، وإن فشل أو حُجب يستخدم yt-dlp ──────────
+
+    def _ytdlp_search_sync(self, query: str, limit: int):
+        ydl_opts = {
+            "quiet": True,
+            "no_warnings": True,
+            "extract_flat": "in_playlist",
+            "skip_download": True,
+            "geo_bypass": True,
+            "nocheckcertificate": True,
+            "socket_timeout": 20,
+            "extractor_retries": 3,
+            # عميل أندرويد يتجاوز كشف الحجب من يوتيوب على عناوين IP
+            # الخاصة بالسيرفرات السحابية (Railway, Render, ...) بدون حاجة لـ PO token
+            "extractor_args": {"youtube": {"player_client": ["android"]}},
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"ytsearch{limit}:{query}", download=False)
+        return (info or {}).get("entries", []) or []
+
+    async def _search_results(self, query: str, limit: int = 1) -> list:
+        """
+        يرجع قائمة نتائج بصيغة متوافقة مع VideosSearch (title/duration/id/link/thumbnails).
+        أولاً يجرب youtubesearchpython، وعند فشله (حجب/خطأ/نتيجة فاضية) يستخدم yt-dlp كبديل أكثر ثباتاً.
+        """
+        try:
+            results = VideosSearch(query, limit=limit)
+            res = (await results.next())["result"]
+            if res:
+                return res
+        except Exception as e:
+            print(f"[Search] ⚠️ youtubesearchpython فشل لـ '{query}': {e}")
+
+        # ── بديل: بحث عبر yt-dlp (أكثر صموداً أمام حجب يوتيوب) ──────────────────
+        try:
+            loop = asyncio.get_running_loop()
+            entries = await loop.run_in_executor(
+                None, self._ytdlp_search_sync, query, limit
+            )
+            out = []
+            for e in entries:
+                if not e:
+                    continue
+                dur = e.get("duration")
+                duration_str = (
+                    time.strftime(
+                        "%H:%M:%S" if dur >= 3600 else "%M:%S", time.gmtime(dur)
+                    )
+                    if dur
+                    else None
+                )
+                vidid = e.get("id")
+                thumb = e.get("thumbnail") or (
+                    f"https://i.ytimg.com/vi/{vidid}/hqdefault.jpg" if vidid else ""
+                )
+                out.append(
+                    {
+                        "title": e.get("title"),
+                        "duration": duration_str,
+                        "id": vidid,
+                        "link": f"https://www.youtube.com/watch?v={vidid}",
+                        "thumbnails": [{"url": thumb}],
+                    }
+                )
+            if out:
+                print(f"[Search] ✅ تم العثور على النتيجة عبر yt-dlp لـ '{query}'")
+            return out
+        except Exception as e:
+            print(f"[Search] ❌ فشل بحث yt-dlp أيضاً لـ '{query}': {e}")
+            return []
+
     # ── دوال الواجهة الأصلية ───────────────────────────────────────────────────
 
     async def exists(self, link: str, videoid: Union[bool, str] = None):
@@ -188,8 +260,7 @@ class YouTubeAPI:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        for result in (await results.next())["result"]:
+        for result in await self._search_results(link, limit=1):
             title = result["title"]
             duration_min = result["duration"]
             thumbnail = result["thumbnails"][0]["url"].split("?")[0]
@@ -205,8 +276,7 @@ class YouTubeAPI:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        for result in (await results.next())["result"]:
+        for result in await self._search_results(link, limit=1):
             title = result["title"]
         return title
 
@@ -215,8 +285,7 @@ class YouTubeAPI:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        for result in (await results.next())["result"]:
+        for result in await self._search_results(link, limit=1):
             duration = result["duration"]
         return duration
 
@@ -225,8 +294,7 @@ class YouTubeAPI:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        for result in (await results.next())["result"]:
+        for result in await self._search_results(link, limit=1):
             thumbnail = result["thumbnails"][0]["url"].split("?")[0]
         return thumbnail
 
@@ -268,8 +336,7 @@ class YouTubeAPI:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        results = VideosSearch(link, limit=1)
-        for result in (await results.next())["result"]:
+        for result in await self._search_results(link, limit=1):
             title = result["title"]
             duration_min = result["duration"]
             vidid = result["id"]
@@ -325,8 +392,7 @@ class YouTubeAPI:
             link = self.base + link
         if "&" in link:
             link = link.split("&")[0]
-        a = VideosSearch(link, limit=10)
-        result = (await a.next()).get("result")
+        result = await self._search_results(link, limit=10)
         title = result[query_type]["title"]
         duration_min = result[query_type]["duration"]
         vidid = result[query_type]["id"]
