@@ -19,7 +19,7 @@ from YukkiMusic.utils.database import (get_authuser_names, get_cmode,
                                        is_maintenance,
                                        is_nonadmin_chat)
 
-from ..formatters import int_to_alpha
+from ..formatters import can_manage_voice_chats, int_to_alpha
 
 
 def AdminRightsCheck(mystic):
@@ -117,7 +117,7 @@ def AdminActual(mystic):
                 )
             except:
                 return
-            if not member.can_manage_voice_chats:
+            if not can_manage_voice_chats(member):
                 return await message.reply(_["general_5"])
         return await mystic(client, message, _)
 
@@ -152,7 +152,7 @@ def ActualAdminCB(mystic):
                 return await CallbackQuery.answer(
                     _["general_5"], show_alert=True
                 )
-            if not a.can_manage_voice_chats:
+            if not can_manage_voice_chats(a):
                 if CallbackQuery.from_user.id not in SUDOERS:
                     token = await int_to_alpha(
                         CallbackQuery.from_user.id
