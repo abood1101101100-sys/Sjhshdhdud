@@ -8,7 +8,7 @@
 # All rights reserved.
 import asyncio
 
-from pyrogram import filters
+from pyrogram import enums, filters
 from pyrogram.types import CallbackQuery, Message
 
 from config import BANNED_USERS, MUSIC_BOT_NAME, adminlist, lyrical
@@ -37,7 +37,7 @@ async def reload_admin_cache(client, message: Message, _):
     try:
         chat_id = message.chat.id
         admins = await app.get_chat_members(
-            chat_id, filter="administrators"
+            chat_id, filter=enums.ChatMembersFilter.ADMINISTRATORS
         )
         authusers = await get_authuser_names(chat_id)
         adminlist[chat_id] = []
@@ -48,7 +48,8 @@ async def reload_admin_cache(client, message: Message, _):
             user_id = await alpha_to_int(user)
             adminlist[chat_id].append(user_id)
         await message.reply_text(_["admin_20"])
-    except:
+    except Exception as e:
+        print(f"[AdminCache] ❌ فشل تحديث قائمة الادمنية للمجموعة {message.chat.id}: {type(e).__name__}: {e}")
         await message.reply_text(
             "Failed to reload admincache. Make sure Bot is admin in your chat."
         )
